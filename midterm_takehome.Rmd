@@ -12,6 +12,7 @@ library(tidyverse)
 library(gapr)
 library(glue)
 library(rio)
+
 ```
 
 PART A: Data
@@ -95,7 +96,7 @@ We can see that students coded Hispanic/Latino score, on average, about 0.81 sta
 
 
 mydata3 <- mydata2 %>%
-  group_by(academic_year, district) %>%
+  group_by(academic_year, district, n_schools) %>%
   nest() %>%
   mutate(gap = map(data, ~estimate_v(.x, "white", "hispanic_latino")))
 head(mydata3)
@@ -115,15 +116,18 @@ Hint: You need to select unique districts. You may want to try something like th
 ```{r}
 
 dists <- unique(mydata4$district)[1:100]
-
 mydata4 %>% 
   filter(district %in% dists)
- 
+#install.packages("english")
+library(english)
+library(tidyverse)
+mydata4 <- mydata4 %>%
+  mutate(label = 
+           glue("District included {(n_schools)} schools"))
 #plot for one district "Bandon SD 54"
 
 plot_1 <- mydata4 %>%
   filter(district == "Bandon SD 54")
-
 ggplot(plot_1, aes((as.numeric(as.factor(academic_year))), v)) +
   geom_errorbar(aes(ymin = v + qnorm(0.025)*v_se,
                     ymax = v + qnorm(0.975)*v_se),
@@ -133,9 +137,38 @@ ggplot(plot_1, aes((as.numeric(as.factor(academic_year))), v)) +
   geom_hline(yintercept = 0, color = "red") +
   labs(x = "School year",
        y = "Average achievement difference (SD units)",
-       caption = "Note: District included 3 schools")
+       title = "Achievement Gap Estimate: Bandon School District",
+       subtitle = "Negative values indicate White students have higher   average achievement
+Positive values indicate Hispanic/Latino students have higher average achievement", 
+caption = unique(plot_1$label))
   
 
+```
+```{r}
+# Plot for all districts
+
+final_plots <- mydata4 %>%
+  group_by(district, label) %>%
+  nest() %>%
+  mutate(plots = pmap(list(district, label, data),
+                      ~ggplot(..3, 
+                              aes((as.numeric(as.factor(academic_year))), v)) +
+                                geom_errorbar(aes(ymin = v +
+                                                    qnorm(0.025)*v_se,
+                                                  ymax = v +
+                                                    qnorm(0.975)*v_se),
+                                              color = "gray40") +
+                                geom_point(color = "cornflowerblue") +
+                                geom_line() +
+                                geom_hline(yintercept = 0, color = "red") + 
+ labs(x = "School year",
+      y = "Average achievement difference (SD units)",
+      title = glue("Achievement Gap Estimate: {..1}"),
+      subtitle = "Negative values indicate White students have higher average achievement
+Positive values indicate Hispanic/Latino students have higher average achievement",
+      caption = ..2)))
+
+final_plots$plots[[3]]
 ```
 
 3. Save the plots into a “plots” directory. Make sure the file names are meaningful.
@@ -144,13 +177,14 @@ HINTS
 
 * You don’t have to use a loop to create the file names (maybe give {glue} a try? Otherwise paste or paste0 will work fine).
 * When working with the code, limit the number of plots you’re saving to, say, the first five to make sure it works before running it on all plots.
+
 ```{r}
-fs::dir_create(here::here("plots", "pulitzers"))
-files <- str_replace_all(tolower(final_plots$newspaper), "", "-")
-paths <- here::here("plots", "pulitzers", glue("{files}.png"))
-walk2(paths, final_plots$plots, ggsave,
-      width = 9.5,
-      height = 6.5,
-      dpi = 500)
+
+fs::dir_create(here::here("plots", "mydata4"))
+files <- str_replace_all(tolower(final_plots$district), " ", "_")
+paths <- here::here("plots", "mydata4", glue("{files}.png"))
+paths
+walk2(paths, final_plots$plots, ggsave)
+
 ```
 
