@@ -181,9 +181,8 @@ HINTS
 ```{r}
 fs::dir_create(here::here("plots", "mydata4"))
 files <- str_replace_all(tolower(final_plots$district), " ", "_")
-paths <- here::here("plots", "mydata4", glue("{files}.pdf"))
-
-walk2(paths, final_plots$plots, ggsave, device = "pdf")
+paths <- here::here("plots", "mydata4", glue("{files}.png"))
+walk2(paths,final_plots$plots, ggsave, device = "png")
 
 ```
 
